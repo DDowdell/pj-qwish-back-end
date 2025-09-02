@@ -4,9 +4,9 @@ const router = express.Router();
 const List = require("../models/list.js");
 const Item = require('../models/item.js');
 
-router.get("/", verifyToken, async (req, res) => {
+router.get("/", verifyToken, async (req, res) => { // get all lists
   try {
-    //only yours lists, without ones shared with you
+    // only yours lists, without ones shared with you
     const allLists = await List.find({ author: req.user._id });
     return res.status(200).json(allLists);
   } catch (e) {
@@ -15,7 +15,7 @@ router.get("/", verifyToken, async (req, res) => {
   }
 });
 
-router.post("/", verifyToken, async (req, res) => {
+router.post("/", verifyToken, async (req, res) => { // create a list
   try {
     req.body.author = req.user._id;
 
@@ -27,7 +27,7 @@ router.post("/", verifyToken, async (req, res) => {
   }
 });
 
-router.get("/shared", verifyToken, async (req, res) => {
+router.get("/shared", verifyToken, async (req, res) => { // get lists shared with the logged-in user
   try {
     const sharedLists = await List.find({ sharedWith: req.user._id });
     if (!sharedLists) return res.sendStatus(404);
@@ -38,7 +38,7 @@ router.get("/shared", verifyToken, async (req, res) => {
   };
 });
 
-router.get("/:listId", verifyToken, async (req, res) => {
+router.get("/:listId", verifyToken, async (req, res) => { // get specific list
   try {
     const { listId } = req.params;
     const list = await List.findById(listId);
@@ -56,6 +56,8 @@ router.get("/:listId", verifyToken, async (req, res) => {
       return res.sendStatus(404);
     };
 
+    list.items = list.items.filter(el => el._id); // remove blank entries if they exist (safety check)
+
     // Add full items to the list
     const itemIds = list.items.map(el => el._id);
     const items = await Item.find({ _id: itemIds });
@@ -64,8 +66,6 @@ router.get("/:listId", verifyToken, async (req, res) => {
       Object.assign(itm, items[idx]);
     };
 
-    // console.log('BACKEND/list:', list);
-
     return res.status(200).json(list);
   } catch (e) {
     console.error(e);
@@ -73,7 +73,7 @@ router.get("/:listId", verifyToken, async (req, res) => {
   }
 });
 
-router.put("/:listId", verifyToken, async (req, res) => {
+router.put("/:listId", verifyToken, async (req, res) => { // update a list
   try {
     const { listId } = req.params;
     const {
@@ -106,7 +106,7 @@ router.put("/:listId", verifyToken, async (req, res) => {
   }
 });
 
-router.delete("/:listId", verifyToken, async (req, res) => {
+router.delete("/:listId", verifyToken, async (req, res) => { // delete a list
   try {
     const { listId } = req.params;
     if (!listId) {
@@ -124,37 +124,35 @@ router.delete("/:listId", verifyToken, async (req, res) => {
   }
 });
 
-router.delete("/:listId/:itemId", verifyToken, async (req, res) => {
+router.delete("/:listId/:itemId", verifyToken, async (req, res) => { // delete an item from a list
   try {
-    const list = await List.findByIdAndUpdate(req.params.listId, {
-      $pull: { items: { _id: req.params.itemId, }, },
+    const { listId, itemId } = req.params;
+    const list = await List.findByIdAndUpdate(listId, {
+      $pull: { items: { _id: itemId, }, },
     }, { new: true });
     if (!list) return res.sendStatus(404);
-    if (list.items.find(el => el._id.toString() === req.params.itemId)) {
+    if (list.items.find(el => el._id.toString() === itemId)) {
       throw new Error('Failed to remove item');
     };
 
-    const item = await Item.findById(req.params.itemId);
-    return res.status(200).json(item);
+    const isItemStillUsed = await List.findOne({ items: { $elemMatch: { '_id': itemId } } });
+
+    // Delete the item if it is no longer referenced by a list
+    if (!isItemStillUsed) { const item = await Item.findByIdAndDelete(itemId); };
+
+    return res.status(200).json(list);
   } catch (e) {
     console.error(e);
     return res.sendStatus(500);
   }
 });
 
-router.post("/:listId/items/new", verifyToken, async (req, res) => {
+router.post("/:listId/items/new", verifyToken, async (req, res) => { // add an item to a list
   try {
-    // const list = await List.findById(req.params.listId);
-
-    // if (!list) {
-    //   return res.sendStatus(404);
-    // }
-
-    // list.items.push(req.body);
-    // await list.save();
+    const item = (req.body._id) ? await Item.findById(req.body._id) : await Item.create(req.body);
 
     const list = await List.findByIdAndUpdate(req.params.listId,
-      { $push: { items: { _id: req.body._id, quantity: req.body.quantity } }, },
+      { $push: { items: { _id: item._id, quantity: req.body.quantity } }, },
       { new: true }
     );
 

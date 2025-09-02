@@ -2,7 +2,7 @@ const Item = require('../models/item.js');
 const express = require('express');
 const router = express.Router();
 
-router.post('/', async (req, res) => {
+router.post('/', async (req, res) => { // create or retrieve an item
   try {
     const preExistingItem = await Item.findOne({ product_id: req.body.product_id });
     if (preExistingItem) { return res.status(201).json(preExistingItem) }
@@ -15,7 +15,7 @@ router.post('/', async (req, res) => {
   };
 });
 
-router.get('/', async (req, res) => {
+router.get('/', async (req, res) => { // get all items in the database
   try {
     const foundItems = await Item.find();
     res.status(200).json(foundItems);
@@ -24,7 +24,7 @@ router.get('/', async (req, res) => {
   };
 });
 
-router.get('/:itemId', async (req, res) => {
+router.get('/:itemId', async (req, res) => { // get specific item
   try {
     const foundItem = await Item.findById(req.params.itemId);
     if (!foundItem) {
@@ -41,9 +41,8 @@ router.get('/:itemId', async (req, res) => {
   };
 });
 
-router.delete('/:itemId', async (req, res) => {
+router.delete('/:itemId', async (req, res) => { // delete an item
   try {
-    const itemId = req.params.id;
     const deletedItem = await Item.findByIdAndDelete(req.params.itemId);
 
     if (!deletedItem) {
@@ -56,11 +55,9 @@ router.delete('/:itemId', async (req, res) => {
   };
 });
 
-router.put('/:itemId', async (req, res) => {
+router.put('/:itemId', async (req, res) => { // update an item
   try {
-    const updatedItem = await Item.findByIdAndUpdate(req.params.itemId, req.body, {
-      new: true,
-    });
+    const updatedItem = await Item.findByIdAndUpdate(req.params.itemId, req.body, { new: true });
     if (!updatedItem) {
       res.status(404);
       throw new Error('Item not found.');
@@ -75,7 +72,7 @@ router.put('/:itemId', async (req, res) => {
   }
 });
 
-router.post('/many', async (req, res) => {
+router.post('/many', async (req, res) => { // retrieve array of items
   try {
     const foundItems = await Item.find({ _id: req.body.itemIds })
     res.status(200).json(foundItems);
