@@ -135,7 +135,7 @@ router.delete("/:listId/:itemId", verifyToken, async (req, res) => { // delete a
       throw new Error('Failed to remove item');
     };
 
-    const isItemStillUsed = await List.find({ items: { _id: itemId } });
+    const isItemStillUsed = await List.findOne({ items: { $elemMatch: { '_id': itemId } } });
 
     // Delete the item if it is no longer referenced by a list
     if (!isItemStillUsed) { const item = await Item.findByIdAndDelete(itemId); };
